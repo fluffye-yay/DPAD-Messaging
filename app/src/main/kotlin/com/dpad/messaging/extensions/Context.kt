@@ -15,6 +15,7 @@ import com.dpad.messaging.helpers.MmsHelper
 import com.dpad.messaging.helpers.Prefs
 import com.dpad.messaging.models.Conversation
 import com.dpad.messaging.models.Message
+import org.json.JSONArray
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Telephony ContentProvider read helpers
@@ -344,8 +345,10 @@ suspend fun Context.getMessagesForThread(
                 // Real text body from text/plain part; fallback to subject or "MMS"
                 val body = MmsHelper.getMmsDisplayBody(this, id, subject)
 
-                // Store first supported media part URI for ThreadAdapter preview.
-                val attachmentsJson = MmsHelper.getMmsImagePartUris(this, id).joinToString(",")
+                // Store image part URIs for ThreadAdapter multi-image gallery.
+                val attachmentsJson = JSONArray(
+                    MmsHelper.getMmsImagePartUris(this, id)
+                ).toString()
 
                 messages.add(
                     Message(

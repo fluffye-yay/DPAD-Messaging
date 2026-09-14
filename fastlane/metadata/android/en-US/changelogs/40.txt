@@ -1,0 +1,2 @@
+- Fix: Multiple images attached to an MMS message now display in the thread instead of appearing blank
+ - Fix: After sending a message, the thread scrolls to show it right away instead of leaving it below the screen

@@ -116,6 +116,7 @@ class ThreadActivity : BaseActivity() {
     private lateinit var contactPickerLauncher: ActivityResultLauncher<Void?>
     private lateinit var cameraCaptureLauncher: ActivityResultLauncher<Uri>
     private var hasInitializedList = false
+    private var scrollToBottomAfterSend = false
     private var loadMessagesJob: Job? = null
     private var displayMessagesJob: Job? = null
 
@@ -1334,15 +1335,21 @@ class ThreadActivity : BaseActivity() {
                 ThreadItem.fromMessages(messages)
             }
             threadAdapter.submitList(items) {
-                // Keep initial auto-scroll behavior, but avoid stealing D-pad focus on every refresh
-                if (!hasInitializedList && threadAdapter.itemCount > 0) {
+                // Scroll to bottom on initial load so the latest message is visible.
+                // After sending, the compose field keeps focus and the just-sent
+                // bubble would be appended below the viewport — scroll it into view.
+                val shouldScroll = !hasInitializedList || scrollToBottomAfterSend
+                if (shouldScroll && threadAdapter.itemCount > 0) {
                     binding.rvMessages.scrollToPosition(threadAdapter.itemCount - 1)
                     binding.rvMessages.post {
                         binding.rvMessages.scrollToPosition(threadAdapter.itemCount - 1)
                     }
                     if (!fromCache) {
-                        hasInitializedList = true
+                        scrollToBottomAfterSend = false
                     }
+                }
+                if (!hasInitializedList && !fromCache) {
+                    hasInitializedList = true
                 }
             }
         }
@@ -1630,6 +1637,7 @@ class ThreadActivity : BaseActivity() {
                 deleteCameraTempFile()
                 runCatching { voiceAttachmentFileForSend?.delete() }
             }
+            scrollToBottomAfterSend = true
             withContext(Dispatchers.Main) { loadMessages() }
         }
     }
@@ -1760,6 +1768,7 @@ class ThreadActivity : BaseActivity() {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+            scrollToBottomAfterSend = true
             withContext(Dispatchers.Main) { loadMessages() }
         }
     }
