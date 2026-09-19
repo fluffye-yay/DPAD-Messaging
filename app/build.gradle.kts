@@ -17,11 +17,11 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.dpadsms"
+        applicationId = "com.dpadsms.fluffye"
         minSdk = 23
         targetSdk = 34
         versionCode = 40
-        versionName = "0.4"
+        versionName = "0.4-fluffye"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
