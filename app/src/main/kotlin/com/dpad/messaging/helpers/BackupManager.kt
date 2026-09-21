@@ -3,6 +3,7 @@ package com.dpad.messaging.helpers
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import androidx.room.withTransaction
 import com.dpad.messaging.App
 import com.dpad.messaging.models.BackupData
 import com.dpad.messaging.models.BackupPreferences
@@ -31,7 +32,14 @@ object BackupManager {
     }
 
     /**
-     * Exports all message data as an encrypted JSON string.
+     * Exports the app's local data as an encrypted JSON string.
+     *
+     * Scope: this ONLY backs up data stored in the app's own Room database —
+     * scheduled messages, drafts, recycle-bin items, attachments, blocked
+     * keyword/number lists, conversation metadata, and app preferences.
+     * The on-device SMS/MMS history lives in the system Telephony provider and
+     * is NOT exported (thread contents are re-read from the provider at runtime).
+     *
      * The encryption key is stored in Android KeyStore and is device-backed.
      * The returned string is base64(IV + ciphertext) and can be safely written
      * to external storage.
@@ -75,6 +83,14 @@ object BackupManager {
         return encrypt(plaintext)
     }
 
+    /**
+     * Restores app-local data (same scope as [backup]) from an encrypted backup
+     * file, replacing current data.  Room writes are applied atomically inside a
+     * single database transaction; the preferences are applied afterwards.
+     * Backups are device-bound (AndroidKeyStore key), so they can only be
+     * restored on the device that created them.
+     */
+    @Suppress("UNUSED_PARAMETER")
     suspend fun restore(context: Context, backupJson: String): BackupResult {
         val decrypted = try {
             decrypt(backupJson)
@@ -96,34 +112,38 @@ object BackupManager {
         }
 
         try {
-            db.conversationsDao().deleteAllConversations()
-            db.messagesDao().deleteAllMessages()
-            db.attachmentsDao().deleteAllAttachments()
-            db.draftsDao().deleteAllDrafts()
-            db.messagesDao().emptyRecycleBin()
-            db.blockedKeywordsDao().deleteAll()
-            db.blockedNumbersDao().deleteAll()
+            // All Room writes happen inside a single transaction so a failure
+            // midway leaves the database unchanged rather than half-restored.
+            db.withTransaction {
+                db.conversationsDao().deleteAllConversations()
+                db.messagesDao().deleteAllMessages()
+                db.attachmentsDao().deleteAllAttachments()
+                db.draftsDao().deleteAllDrafts()
+                db.messagesDao().emptyRecycleBin()
+                db.blockedKeywordsDao().deleteAll()
+                db.blockedNumbersDao().deleteAll()
 
-            if (data.conversations.isNotEmpty()) {
-                db.conversationsDao().insertConversations(data.conversations)
-            }
-            if (data.messages.isNotEmpty()) {
-                db.messagesDao().insertMessages(data.messages)
-            }
-            if (data.attachments.isNotEmpty()) {
-                db.attachmentsDao().insertAttachments(data.attachments)
-            }
-            for (draft in data.drafts) {
-                db.draftsDao().insertDraft(draft)
-            }
-            for (msg in data.recycleBinMessages) {
-                db.messagesDao().insertRecycleBinMessage(msg)
-            }
-            for (kw in data.blockedKeywords) {
-                db.blockedKeywordsDao().insert(kw)
-            }
-            for (num in data.blockedNumbers) {
-                db.blockedNumbersDao().insert(num)
+                if (data.conversations.isNotEmpty()) {
+                    db.conversationsDao().insertConversations(data.conversations)
+                }
+                if (data.messages.isNotEmpty()) {
+                    db.messagesDao().insertMessages(data.messages)
+                }
+                if (data.attachments.isNotEmpty()) {
+                    db.attachmentsDao().insertAttachments(data.attachments)
+                }
+                for (draft in data.drafts) {
+                    db.draftsDao().insertDraft(draft)
+                }
+                for (msg in data.recycleBinMessages) {
+                    db.messagesDao().insertRecycleBinMessage(msg)
+                }
+                for (kw in data.blockedKeywords) {
+                    db.blockedKeywordsDao().insert(kw)
+                }
+                for (num in data.blockedNumbers) {
+                    db.blockedNumbersDao().insert(num)
+                }
             }
 
             val p = data.preferences

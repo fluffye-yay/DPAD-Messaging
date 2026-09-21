@@ -31,6 +31,7 @@ import com.dpad.messaging.extensions.getConversationsFromTelephony
 import com.dpad.messaging.helpers.ConversationCache
 import com.dpad.messaging.helpers.ContactColors
 import com.dpad.messaging.extensions.markThreadAsReadInTelephony
+import com.dpad.messaging.extensions.markThreadAsUnreadInTelephony
 import com.dpad.messaging.helpers.Prefs
 import com.dpad.messaging.helpers.ThemeManager
 import com.dpad.messaging.models.Draft
@@ -659,12 +660,21 @@ class MainActivity : BaseActivity() {
     // ─── Conversation actions ───────────────────────────────────────────────
 
     private fun toggleReadState(conversation: Conversation) {
+        val markUnread = conversation.read   // menu shows "mark as unread" when currently read
         lifecycleScope.launch(Dispatchers.IO) {
             val dao = App.get().database.conversationsDao()
-            dao.markAsRead(conversation.threadId)
-            markThreadAsReadInTelephony(conversation.threadId)
+            val messagesDao = App.get().database.messagesDao()
+            if (markUnread) {
+                dao.markAsUnread(conversation.threadId)
+                messagesDao.markThreadUnread(conversation.threadId)
+                markThreadAsUnreadInTelephony(conversation.threadId)
+            } else {
+                dao.markAsRead(conversation.threadId)
+                messagesDao.markThreadRead(conversation.threadId)
+                markThreadAsReadInTelephony(conversation.threadId)
+            }
         }
-        loadConversations()
+        loadConversations(forceRefresh = true)
     }
 
     private fun togglePin(conversation: Conversation) {

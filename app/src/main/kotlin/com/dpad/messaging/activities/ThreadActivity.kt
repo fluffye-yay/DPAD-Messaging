@@ -381,7 +381,8 @@ class ThreadActivity : BaseActivity() {
 
     private fun setupMessageList() {
         threadAdapter = ThreadAdapter(
-            onMessageLongClick = { message -> showMessageContextMenu(message) }
+            onMessageLongClick = { message -> showMessageContextMenu(message) },
+            threadNumbers = (participants + phoneNumber).filter { it.isNotBlank() }
         )
 
         binding.rvMessages.apply {
@@ -1849,7 +1850,18 @@ class ThreadActivity : BaseActivity() {
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun onRefreshMessages(event: RefreshMessages) {
         if (BuildConfig.DEBUG) Log.d("DPAD_MSG", "ThreadActivity.onRefreshMessages() event.threadId=${event.threadId} local threadId=$threadId match=${event.threadId == threadId}")
-        if (event.threadId == threadId) loadMessages()
+        if (event.threadId != threadId) return
+        // If the newest message is already visible (user is at the bottom, e.g.
+        // awaiting a reply), scroll so the freshly-received message appears
+        // instead of being left below the viewport.
+        val layout = binding.rvMessages.layoutManager as? LinearLayoutManager
+        if (layout != null && threadAdapter.itemCount > 0) {
+            val lastVisible = layout.findLastVisibleItemPosition()
+            if (lastVisible >= threadAdapter.itemCount - 1) {
+                scrollToBottomAfterSend = true
+            }
+        }
+        loadMessages()
     }
 
     // ─── Key handling ───────────────────────────────────────────────────────

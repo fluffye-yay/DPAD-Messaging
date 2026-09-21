@@ -251,7 +251,7 @@
     <!-- Backup & Restore -->
     <string name="backup">Backup &amp; Restore</string>
     <string name="backup_create">Backup to file</string>
-    <string name="backup_create_summary">Save all messages, settings, and blocked lists to a JSON file</string>
+    <string name="backup_create_summary">Save scheduled messages, drafts, recycle bin, blocked lists, and settings to a JSON file</string>
     <string name="backup_restore">Restore from file</string>
     <string name="backup_restore_summary">Replace current data with a previously saved backup</string>
     <string name="backup_success">Backup saved successfully</string>
@@ -260,7 +260,7 @@
     <string name="restore_failed">Restore failed:</string>
     <string name="restore_invalid">Backup file is empty</string>
     <string name="backup_warning_title">Sensitive Data Warning</string>
-    <string name="backup_warning_message">The backup file contains ALL your messages, contact numbers, blocked lists, and app settings in encrypted form. The file can only be restored on this device, not on another device. Keep the file in a safe place.</string>
+    <string name="backup_warning_message">The backup file contains app-only data: scheduled messages, drafts, recycle-bin items, blocked lists, conversation settings, and app preferences. Your SMS/MMS history is stored by the system and is not included. The file is encrypted and can only be restored on this device, not on another device. Keep the file in a safe place.</string>
     <string name="backup_confirm">Create Backup</string>
     <string name="check_for_updates">Check for updates</string>
     <string name="check_for_updates_summary">Download and install the latest signed release</string>

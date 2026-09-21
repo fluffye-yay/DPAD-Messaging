@@ -114,6 +114,21 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="mmsto" />
             </intent-filter>
+            <!-- Taps on launcher "missed events" for incoming MMS/SMS dispatch a
+                 content://mms/<id> or content://mms-sms/conversations/<threadId>
+                 URI (e.g. Sonim left-nav missed events screen). Accept these so
+                 the tap opens the thread instead of being unhandled. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:host="mms" />
+                <data android:scheme="content" android:host="sms" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:host="mms-sms" android:pathPrefix="/conversations/" />
+            </intent-filter>
         </activity>
 
         <activity

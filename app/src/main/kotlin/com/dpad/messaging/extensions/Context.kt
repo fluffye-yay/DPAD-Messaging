@@ -60,6 +60,48 @@ fun Context.getOwnPhoneNumbers(): Set<String> {
 }
 
 /**
+ * Counts unread messages per thread across both the SMS and MMS providers.
+ * Returns a map of threadId → number of unread messages.  Only threads that
+ * actually contain unread messages appear in the map.
+ */
+fun Context.getUnreadCountsByThread(): Map<Long, Int> {
+    val counts = hashMapOf<Long, Int>()
+    try {
+        contentResolver.query(
+            Telephony.Sms.CONTENT_URI,
+            arrayOf(Telephony.Sms.THREAD_ID),
+            "${Telephony.Sms.READ} = 0",
+            null,
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val threadId = cursor.getLong(0)
+                counts[threadId] = (counts[threadId] ?: 0) + 1
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+    try {
+        contentResolver.query(
+            Uri.parse("content://mms"),
+            arrayOf("thread_id"),
+            "read = 0",
+            null,
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val threadId = cursor.getLong(0)
+                counts[threadId] = (counts[threadId] ?: 0) + 1
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+    return counts
+}
+
+/**
  * Reads all non-archived conversations from the system Telephony provider,
  * resolves contact names, and returns them sorted pinned-first then date-desc.
  *
@@ -74,6 +116,7 @@ fun Context.getConversationsFromTelephony(
     maxCount: Int = Int.MAX_VALUE
 ): List<Conversation> {
     val excluded = archivedThreadIds ?: Prefs.get().getArchivedThreadIds()
+    val unreadCounts = getUnreadCountsByThread()
     val uri = Uri.parse("content://mms-sms/conversations?simple=true")
     val projection = arrayOf(
         Telephony.Threads._ID,
@@ -146,7 +189,8 @@ fun Context.getConversationsFromTelephony(
                             pinned = threadId in pinnedThreadIds,
                             archived = threadId in excluded,
                             muted = threadId in mutedThreadIds,
-                            participants = phoneNumbers.joinToString(",")
+                            participants = phoneNumbers.joinToString(","),
+                            unreadCount = unreadCounts[threadId] ?: 0
                         )
                     )
                 }
@@ -424,7 +468,9 @@ fun Context.markThreadAsReadInTelephony(threadId: Long) {
             "${Telephony.Sms.THREAD_ID} = ? AND (${Telephony.Sms.READ} = 0 OR ${Telephony.Sms.SEEN} = 0)",
             arrayOf(threadId.toString())
         )
-        // Also mark MMS rows for this thread as read
+        // Also mark MMS rows for this thread as read. The MmsProvider on some
+        // devices (e.g. Sonim) silently ignores a single bulk update on the base
+        // URI, so enumerate the rows and update each one individually too.
         try {
             val mmsValues = android.content.ContentValues().apply {
                 put("read", 1)
@@ -436,6 +482,81 @@ fun Context.markThreadAsReadInTelephony(threadId: Long) {
                 "thread_id = ? AND (read = 0 OR seen = 0)",
                 arrayOf(threadId.toString())
             )
+            contentResolver.query(
+                android.net.Uri.parse("content://mms"),
+                arrayOf("_id"),
+                "thread_id = ? AND (read = 0 OR seen = 0)",
+                arrayOf(threadId.toString()),
+                null
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(0)
+                    try {
+                        contentResolver.update(
+                            android.net.Uri.parse("content://mms/$id"),
+                            mmsValues,
+                            null,
+                            null
+                        )
+                    } catch (_: Exception) {}
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore MMS update failures — best-effort
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
+/** Mark an entire thread as unread in the system telephony provider. */
+fun Context.markThreadAsUnreadInTelephony(threadId: Long) {
+    try {
+        val values = android.content.ContentValues().apply {
+            put(Telephony.Sms.READ, 0)
+            put(Telephony.Sms.SEEN, 0)
+        }
+        contentResolver.update(
+            Telephony.Sms.CONTENT_URI,
+            values,
+            "${Telephony.Sms.THREAD_ID} = ?",
+            arrayOf(threadId.toString())
+        )
+        // Also mark MMS rows for this thread as unread. The MmsProvider on some
+        // devices (e.g. Sonim) silently ignores a single bulk update on the base
+        // URI, so enumerate the rows and update each one individually too — but
+        // only for rows that are currently read, so we never un-mark messages
+        // the user has already seen while leaving genuinely unread ones untouched.
+        try {
+            val mmsValues = android.content.ContentValues().apply {
+                put("read", 0)
+                put("seen", 0)
+            }
+            contentResolver.update(
+                android.net.Uri.parse("content://mms"),
+                mmsValues,
+                "thread_id = ? AND read = 1",
+                arrayOf(threadId.toString())
+            )
+            contentResolver.query(
+                android.net.Uri.parse("content://mms"),
+                arrayOf("_id"),
+                "thread_id = ? AND read = 1",
+                arrayOf(threadId.toString()),
+                null
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(0)
+                    try {
+                        contentResolver.update(
+                            android.net.Uri.parse("content://mms/$id"),
+                            mmsValues,
+                            null,
+                            null
+                        )
+                    } catch (_: Exception) {}
+                }
+            }
         } catch (e: Exception) {
             // Ignore MMS update failures — best-effort
         }

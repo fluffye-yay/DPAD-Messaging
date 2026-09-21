@@ -56,6 +56,9 @@ interface MessagesDao {
     @Query("UPDATE messages SET read = 1 WHERE thread_id = :threadId")
     suspend fun markThreadRead(threadId: Long)
 
+    @Query("UPDATE messages SET read = 0 WHERE thread_id = :threadId")
+    suspend fun markThreadUnread(threadId: Long)
+
     // ─── Recycle Bin ───
 
     @Query("SELECT * FROM recycle_bin_messages")

@@ -1,0 +1,5 @@
+- New: Unread conversations show a count badge, and "Mark as unread" restores a conversation to your unread list
+ - Fix: Tapping a missed MMS callout on the home screen (launcher missed-events list) now opens the conversation instead of doing nothing
+ - Fix: Contact colors now apply to picture (MMS) bubbles in one-on-one conversations too, not just text messages
+ - Fix: A freshly received reply scrolls into view when you're reading the conversation
+ - Improve: Backup & restore now shows exactly what's included (app data, not SMS history) and restore rolls back cleanly if interrupted

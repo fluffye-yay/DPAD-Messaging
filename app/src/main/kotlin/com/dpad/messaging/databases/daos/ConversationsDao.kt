@@ -37,6 +37,9 @@ interface ConversationsDao {
     @Query("UPDATE conversations SET read = 1, unread_count = 0 WHERE thread_id = :threadId")
     suspend fun markAsRead(threadId: Long)
 
+    @Query("UPDATE conversations SET read = 0, unread_count = 1 WHERE thread_id = :threadId")
+    suspend fun markAsUnread(threadId: Long)
+
     @Query("UPDATE conversations SET archived = :archived WHERE thread_id = :threadId")
     suspend fun setArchived(threadId: Long, archived: Boolean)
 

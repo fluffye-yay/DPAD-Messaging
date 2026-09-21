@@ -32,7 +32,8 @@ import java.util.Date
 import java.util.Locale
 
 class ThreadAdapter(
-    private val onMessageLongClick: (Message) -> Unit
+    private val onMessageLongClick: (Message) -> Unit,
+    private val threadNumbers: List<String> = emptyList()
 ) : ListAdapter<ThreadItem, RecyclerView.ViewHolder>(DIFF_CALLBACK) {
 
     companion object {
@@ -190,7 +191,22 @@ class ThreadAdapter(
         /** Colors the received bubble with the sender's per-contact color (if set). */
         private fun applyContactBubbleColor(message: Message) {
             val context = binding.root.context
+            // MMS addresses read from the MMS addr table are sometimes blank
+            // (e.g. "insert-address-token") or formatted differently than the
+            // contact's number. For a 1:1 thread, fall back to the thread's
+            // contact number so the chosen color applies consistently to both
+            // text and image bubbles. (Avoided in group threads so each bubble
+            // keeps the color of its actual sender.)
+            val singleThreadNumber = threadNumbers
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .singleOrNull()
+
             val color = ContactColors.customColor(message.address)
+                ?: if (singleThreadNumber != null) {
+                    ContactColors.customColor(singleThreadNumber)
+                } else null
 
             if (color == null) {
                 binding.bubbleContainer.setBackgroundResource(R.drawable.bubble_received)
