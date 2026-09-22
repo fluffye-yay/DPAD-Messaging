@@ -145,7 +145,7 @@ object MmsSender {
 
         // Create Settings with desired behavior
         val settings = KlinkerSettings().apply {
-            setUseSystemSending(true)
+            setUseSystemSending(false)
             setGroup(recipients.size > 1)
             setDeliveryReports(Prefs.get().deliveryReports)
             if (subscriptionId >= 0) {
@@ -233,9 +233,29 @@ object MmsSender {
             }
         }
 
+        // Fallback MMSC for carriers where the APN table is blocked entirely.
+        if (mmsc.isBlank()) {
+            mmsc = "http://mmsc.mobile.att.net"
+            if (proxy.isBlank()) proxy = "proxy.mobile.att.net"
+            if (port.isBlank()) port = "80"
+            if (BuildConfig.DEBUG) {
+                Log.i(TAG, "MmsSender: APN table unavailable, using AT&T MMSC fallback $mmsc proxy=$proxy:$port")
+            }
+        }
+
         if (mmsc.isNotBlank()) settings.setMmsc(mmsc)
         if (proxy.isNotBlank()) settings.setProxy(proxy)
         if (port.isNotBlank()) settings.setPort(port)
+
+        // Seed the mmslib default SharedPreferences consumed by ApnSettings.load()
+        // so the in-process MMS sender uses our resolved MMSC/proxy/port directly
+        // (the APN table is not queryable on this device without carrier privileges).
+        android.preference.PreferenceManager.getDefaultSharedPreferences(context)
+            .edit()
+            .putString("mmsc_url", mmsc)
+            .putString("mms_proxy", proxy)
+            .putString("mms_port", port)
+            .apply()
 
         // Keep headers explicit for stricter carrier gateways.
         settings.setAgent("Android-Mms/2.0")

@@ -2,18 +2,26 @@
 
 A messaging app designed for dumbphones with D-pad navigation.
 
+## Download
+
+Grab the signed APK for the latest release from the [Releases page](https://github.com/jbriones95/DPAD-Messaging/releases), or install via F-Droid.
+
 ## Features
 
 - SMS/MMS send and receive
 - Group messaging with fan-out or group MMS
 - D-pad optimized navigation
 - Dark/light theme with customizable accent colors
+- Per-contact colors for avatars and message bubbles
 - Pin, archive, mute, and delete conversations
+- Unread badges and "mark as unread"
 - Recycle bin with recovery
-- Keyword-based message blocking
+- Keyword- and number-based message blocking
 - Delivery reports
 - Scheduled messages
+- MMS attachment preview/gallery, voice messages, and speech-to-text dictation
 - Contact lookup with auto-suggest
+- Encrypted backup & restore of app data (device-bound)
 
 ## Requirements
 
@@ -63,14 +71,23 @@ app/src/main/
 ### ThemeManager
 Handles theme mode (system/light/dark) and accent color selection.
 
+### ContactColors
+Per-contact color assignment used for avatars and message bubbles.
+
 ### Prefs
 SharedPreferences wrapper for app settings storage.
 
-### MmsSender
-Handles MMS message composition and sending via system MmsService.
+### UnifiedMessageSender
+Routes outgoing messages through the appropriate SMS/MMS path, including scheduled sends.
+
+### MmsHelper / MmsDownloader
+Composes, sends, downloads, and parses MMS messages (via the vendored mmslib).
 
 ### SmsSender
-Handles SMS message sending via SmsManager.
+Handles SMS message sending via SmsManager, including long-message (multipart) handling.
+
+### BackupManager
+Encrypted, device-bound backup and restore of app-local data.
 
 ## Support
 

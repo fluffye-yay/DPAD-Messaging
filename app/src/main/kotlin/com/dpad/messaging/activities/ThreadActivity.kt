@@ -1752,26 +1752,70 @@ class ThreadActivity : BaseActivity() {
         // ─────────────────────────────────────────────────────────────────────
 
         lifecycleScope.launch(Dispatchers.IO) {
-            // Re-send first — creates a fresh OUTBOX row in the CP
-            MessageSenders.unified.sendSms(
-                context        = this@ThreadActivity,
-                phoneNumber    = phoneNumber,
-                body           = message.body,
-                threadId       = threadId,
-                subscriptionId = message.subscriptionId
-            )
-            // Only now delete the stale FAILED row (new one already in provider)
-            try {
-                contentResolver.delete(
-                    ContentUris.withAppendedId(Telephony.Sms.CONTENT_URI, message.id),
-                    null, null
+            if (message.isMms) {
+                // ── MMS retry: re-send via MmsSender to all thread recipients ──
+                val recipients = parseJsonArray(message.participantsJson)
+                    .filter { it.isNotBlank() }
+                    .ifEmpty { participants.ifEmpty { listOf(phoneNumber) } }
+                if (recipients.isEmpty()) return@launch
+
+                val attachmentUris = parseJsonArray(message.attachmentsJson).mapNotNull { raw ->
+                    runCatching { Uri.parse(raw) }.getOrNull()
+                }
+
+                MessageSenders.unified.sendMms(
+                    context        = this@ThreadActivity,
+                    recipients     = recipients,
+                    body           = message.body,
+                    attachmentUri  = attachmentUris.firstOrNull(),
+                    attachmentUris = attachmentUris,
+                    threadId       = threadId,
+                    subscriptionId = message.subscriptionId
                 )
-            } catch (e: Exception) {
-                e.printStackTrace()
+                // Only now delete the stale FAILED MMS row (new one already in provider)
+                try {
+                    contentResolver.delete(
+                        Uri.parse("content://mms/${message.id}"),
+                        null, null
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            } else {
+                // Re-send first — creates a fresh OUTBOX row in the CP
+                MessageSenders.unified.sendSms(
+                    context        = this@ThreadActivity,
+                    phoneNumber    = phoneNumber,
+                    body           = message.body,
+                    threadId       = threadId,
+                    subscriptionId = message.subscriptionId
+                )
+                // Only now delete the stale FAILED row (new one already in provider)
+                try {
+                    contentResolver.delete(
+                        ContentUris.withAppendedId(Telephony.Sms.CONTENT_URI, message.id),
+                        null, null
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
             scrollToBottomAfterSend = true
             withContext(Dispatchers.Main) { loadMessages() }
         }
+    }
+
+    private fun parseJsonArray(raw: String): List<String> {
+        if (raw.isBlank()) return emptyList()
+        if (!raw.trim().startsWith("[")) return listOf(raw).filter { it.isNotBlank() }
+        return runCatching {
+            val arr = org.json.JSONArray(raw)
+            buildList {
+                for (i in 0 until arr.length()) {
+                    arr.optString(i)?.takeIf { it.isNotBlank() }?.let { add(it) }
+                }
+            }
+        }.getOrDefault(emptyList())
     }
 
     // ─── SIM picker ──────────────────────────────────────────────────────────
