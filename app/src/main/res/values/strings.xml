@@ -16,7 +16,6 @@
     <string name="cancel">Cancel</string>
     <string name="save">Save</string>
     <string name="delete">Delete</string>
-    <string name="confirm">Confirm</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
     <string name="more">More</string>
@@ -24,7 +23,6 @@
     <!-- ─── Conversation List ─── -->
     <string name="no_conversations">No messages yet.\nPress New to start a conversation.</string>
     <string name="loading_conversations">Loading conversations…</string>
-    <string name="draft_prefix">Draft: </string>
 
     <!-- ─── Thread / Compose ─── -->
     <string name="type_message">Type a message…</string>
@@ -41,10 +39,7 @@
     <string name="sending_later">Scheduled</string>
     <string name="message_failed">Failed to send. Tap to retry.</string>
     <string name="delivered">Delivered</string>
-    <string name="scheduled">Scheduled</string>
-    <string name="you">You</string>
     <string name="message_copied">Message copied</string>
-    <string name="no_messages">No messages in this conversation.</string>
     <string name="message_blocked_by_policy">Message blocked: Contact your admin.</string>
 
     <!-- ─── Context Menu Actions ─── -->
@@ -62,7 +57,6 @@
     <string name="restore">Restore</string>
     <string name="forward">Forward</string>
     <string name="copy_text">Copy Text</string>
-    <string name="select_text">Select Text</string>
     <string name="retry_send">Retry Send</string>
     <string name="cancel_scheduled_message">Cancel Scheduled Message</string>
     <string name="reply">Reply</string>
@@ -72,10 +66,7 @@
     <string name="participants">Participants</string>
     <string name="rename_conversation">Rename Conversation</string>
     <string name="contact_color">Contact Color</string>
-    <string name="contact_color_summary">Custom color for this contact\'s icon and messages</string>
     <string name="choose_contact_color">Choose a color</string>
-    <string name="color_default">Default</string>
-    <string name="enter_name">Enter name…</string>
     <string name="enter_recipients_hint">Add recipients with + or type a number</string>
     <string name="new_thread_hint">Type number and click center or use the + to add contacts</string>
     <string name="to_label">To:</string>
@@ -85,22 +76,10 @@
     <string name="yesterday">Yesterday</string>
 
     <!-- ─── Permissions ─── -->
-    <string name="permission_sms_title">SMS Permission Needed</string>
-    <string name="permission_sms_message">DPAD Messages needs permission to read and send SMS messages.</string>
-    <string name="permission_contacts_title">Contacts Permission Needed</string>
-    <string name="permission_contacts_message">DPAD Messages needs permission to read contacts to display names.</string>
     <string name="permission_denied">Permission denied. Some features may not work.</string>
-    <string name="open_settings">Open Settings</string>
 
     <!-- ─── Default SMS App ─── -->
-    <string name="set_default_sms_title">Set as Default SMS App</string>
-    <string name="set_default_sms_message">To send and receive messages, DPAD Messages must be set as the default SMS app.</string>
-    <string name="set_as_default">Set as Default</string>
-    <string name="not_default_sms">Not set as default SMS app — cannot send messages.</string>
-
-    <!-- ─── Search ─── -->
     <string name="search_hint">Search messages…</string>
-    <string name="no_search_results">No results found.</string>
 
     <!-- ─── Settings ─── -->
     <string name="general">General</string>
@@ -161,7 +140,6 @@
     <string name="recycle_bin_enabled_summary">Move deleted messages to recycle bin instead of deleting immediately</string>
     <string name="about">About</string>
     <string name="version">Version</string>
-    <string name="coming_soon">This feature is coming in a future update.</string>
     <string name="new_message">New message</string>
 
     <!-- ─── Blocked Keywords ─── -->
@@ -179,8 +157,6 @@
     <string name="no_recycle_bin">Recycle bin is empty.</string>
 
     <!-- ─── Errors ─── -->
-    <string name="error_loading_conversations">Error loading conversations.</string>
-    <string name="error_loading_messages">Error loading messages.</string>
     <string name="error_sending_message">Failed to send message.</string>
     <string name="error_picking_contact">Could not read selected contact.</string>
     <string name="sms_send_error_generic_failure">SMS failed: generic network error.</string>
@@ -197,12 +173,9 @@
     <!-- ─── SIM / Dual-SIM ─── -->
     <string name="select_sim">Select SIM</string>
     <string name="sim_label">SIM %d</string>
-    <string name="default_sim">Default SIM</string>
 
     <!-- ─── Attachments / MMS Sending ─── -->
     <string name="remove_attachment">Remove attachment</string>
-    <string name="mms_failed">Failed to send MMS.</string>
-    <string name="attachment_too_large">Image too large to send.</string>
     <string name="image_attached">Image attached</string>
     <string name="image_attachment_preview">Image attachment preview</string>
     <string name="scheduled_indicator">Scheduled indicator</string>
@@ -210,7 +183,6 @@
     <string name="schedule_step_decrement">-</string>
     <string name="schedule_step_increment">+</string>
     <string name="recipient_chip_remove">%1$s ×</string>
-    <string name="compose_restore_number">%1$s %2$s</string>
     <string name="sms_char_counter_format">%1$d/%2$d</string>
     <string name="image_viewer_zoom_percent">%1$d%%</string>
     <string name="image_viewer_content_description">Image viewer</string>
@@ -218,7 +190,6 @@
     <string name="save_photo_to_gallery">Save to gallery</string>
     <string name="photo_saved_to_gallery">Photo saved to gallery</string>
     <string name="photo_save_failed">Could not save photo to gallery</string>
-    <string name="tap_to_remove_number">Tap to remove number: %s</string>
     <string name="choose_attachment_app">Choose app</string>
     <string name="scheduled_message_canceled">Scheduled message canceled</string>
     <string name="voice_input">Voice input</string>

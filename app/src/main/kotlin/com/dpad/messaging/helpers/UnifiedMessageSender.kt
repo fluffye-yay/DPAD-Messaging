@@ -231,7 +231,7 @@ object LibraryUnifiedMessageSender : UnifiedMessageSender {
         if (OutgoingFilter.checkAndRecord(context, listOf(phoneNumber), scheduledMessageId).isNotEmpty()) return
 
         val settings = KlinkerSettings().apply {
-            setUseSystemSending(true)
+            setUseSystemSending(false)
             setGroup(false)
             setDeliveryReports(Prefs.get().deliveryReports)
             if (subscriptionId >= 0) setSubscriptionId(subscriptionId)

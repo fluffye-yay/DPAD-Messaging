@@ -24,14 +24,4 @@ object MessageCache {
     fun put(threadId: Long, messages: List<Message>) {
         cache[threadId] = messages
     }
-
-    @Synchronized
-    fun remove(threadId: Long) {
-        cache.remove(threadId)
-    }
-
-    @Synchronized
-    fun clear() {
-        cache.clear()
-    }
 }

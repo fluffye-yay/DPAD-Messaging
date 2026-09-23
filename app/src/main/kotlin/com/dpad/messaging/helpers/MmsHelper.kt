@@ -39,29 +39,11 @@ object MmsHelper {
     }
 
     /**
-     * Returns the content URI string of the first image part found in the MMS message,
-     * e.g. "content://mms/part/42", or null if there is no image part.
-     * @deprecated Use getMmsImagePartUris for multiple images
-     */
-    @Deprecated("Use getMmsImagePartUris for multiple images", replaceWith = ReplaceWith("getMmsImagePartUris(context, msgId).firstOrNull()"))
-    fun getMmsImagePartUri(context: Context, msgId: Long): String? {
-        return getMmsImagePartUris(context, msgId).firstOrNull()
-    }
-
-    /**
      * Returns a list of content URI strings for all image parts found in the MMS message.
      * Returns empty list if there are no image parts.
      */
     fun getMmsImagePartUris(context: Context, msgId: Long): List<String> {
         return getCachedParts(context, msgId).imagePartUris
-    }
-
-    /**
-     * Returns the content URI string of the first audio part found in the MMS message,
-     * e.g. "content://mms/part/42", or null if there is no audio part.
-     */
-    fun getMmsAudioPartUri(context: Context, msgId: Long): String? {
-        return getCachedParts(context, msgId).audioPartUri
     }
 
     /**
@@ -84,7 +66,7 @@ object MmsHelper {
         val textBody = getMmsTextBody(context, msgId)
         if (textBody.isNotBlank()) return textBody
         if (subject.isNotBlank()) return subject
-        if (getMmsImagePartUri(context, msgId) != null) return ""
+        if (getMmsImagePartUris(context, msgId).isNotEmpty()) return ""
         val attachLabel = getMmsAttachmentLabel(context, msgId)
         if (attachLabel.isNotBlank()) return attachLabel
         return "MMS"
@@ -96,7 +78,6 @@ object MmsHelper {
 
         var textBody = ""
         var imagePartUris = mutableListOf<String>()
-        var audioPartUri: String? = null
         var attachmentLabel = ""
 
         val partsUri = Uri.parse("content://mms/$msgId/part")
@@ -124,11 +105,6 @@ object MmsHelper {
                         imagePartUris.add("content://mms/part/$partId")
                     }
 
-                    if (audioPartUri == null && ct.lowercase().startsWith("audio/")) {
-                        val partId = cursor.getLong(idxId)
-                        audioPartUri = "content://mms/part/$partId"
-                    }
-
                     if (attachmentLabel.isBlank() && !ct.isImageMimeType() && ct !in SKIP_MIME_TYPES) {
                         attachmentLabel = if (ct.isVcardMimeType() && idxId >= 0) {
                             val partId = cursor.getLong(idxId)
@@ -148,7 +124,6 @@ object MmsHelper {
         return MmsPartCache.CachedParts(
             textBody = textBody,
             imagePartUris = imagePartUris,
-            audioPartUri = audioPartUri,
             attachmentLabel = attachmentLabel
         ).also { MmsPartCache.put(msgId, it) }
     }

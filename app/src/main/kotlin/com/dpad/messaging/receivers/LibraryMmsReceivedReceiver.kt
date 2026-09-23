@@ -3,7 +3,6 @@ package com.dpad.messaging.receivers
 import android.content.Context
 import android.database.Cursor
 import android.net.Uri
-import android.provider.Telephony
 import android.util.Log
 import androidx.core.net.toUri
 import com.dpad.messaging.App
@@ -44,6 +43,31 @@ class LibraryMmsReceivedReceiver : MmsReceivedReceiver() {
             return
         }
 
+        processMmsRow(context, msgId)
+    }
+
+    override fun onError(context: Context, error: String) {
+        Log.e(TAG, "LibraryMmsReceivedReceiver error: $error")
+        // On some ROMs the system MmsService persists the downloaded MMS into the
+        // provider itself instead of writing klinker's temp cache file, so the
+        // file-path handoff above fails. Fall back to scanning the provider for
+        // the freshly-arrived inbox MMS so the notification/refresh still fires.
+        AppCoroutineScopes.io.launch {
+            try {
+                val fallback = findNewestInboxMms(context)
+                if (fallback > 0L) {
+                    processMmsRow(context, fallback)
+                } else {
+                    EventBus.getDefault().post(RefreshConversations())
+                }
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) Log.w(TAG, "LibraryMmsReceivedReceiver fallback failed: ${e.message}")
+                EventBus.getDefault().post(RefreshConversations())
+            }
+        }
+    }
+
+    private suspend fun processMmsRow(context: Context, msgId: Long) {
         val (threadId, subject) = queryThreadAndSubject(context, msgId)
         val from = getMmsFromAddress(context, msgId)
 
@@ -84,40 +108,41 @@ class LibraryMmsReceivedReceiver : MmsReceivedReceiver() {
         }
     }
 
-    override fun onError(context: Context, error: String) {
-        Log.e(TAG, "LibraryMmsReceivedReceiver error: $error")
-        EventBus.getDefault().post(RefreshConversations())
-    }
-
-    private fun queryPreferredApnValue(column: String): String {
-        val context = App.get()
-        val projection = arrayOf(column, Telephony.Carriers.TYPE, Telephony.Carriers.CURRENT)
-        val selection = "${Telephony.Carriers.CURRENT}=1"
-        val orderBy = "_id DESC"
-
+    /**
+     * Finds the most recent inbox (msg_box=1) MMS row that arrived within the
+     * last few minutes and is backed by a real thread. Used only as a fallback
+     * when the download-complete callback can't read klinker's temp file, since
+     * the system already persisted it. Placeholder notification-ind rows use
+     * DUMMY_THREAD_ID (Long.MAX_VALUE), so those are excluded.
+     */
+    private suspend fun findNewestInboxMms(context: Context): Long {
+        val cutoffSecs = (System.currentTimeMillis() - 180_000L) / 1000L
         return runCatching {
             context.contentResolver.query(
-                Telephony.Carriers.CONTENT_URI,
-                projection,
-                selection,
-                null,
-                orderBy
+                "content://mms".toUri(),
+                arrayOf("_id"),
+                "msg_box = 1 AND date > ? AND thread_id > 0",
+                arrayOf(cutoffSecs.toString()),
+                "date DESC"
             )?.use { cursor ->
-                val colIdx = cursor.getColumnIndex(column)
-                val typeIdx = cursor.getColumnIndex(Telephony.Carriers.TYPE)
-                while (cursor.moveToNext()) {
-                    val type = if (typeIdx >= 0) cursor.getString(typeIdx).orEmpty() else ""
-                    if (type.contains("mms", ignoreCase = true) || type == "*") {
-                        if (colIdx >= 0) {
-                            return@runCatching cursor.getString(colIdx).orEmpty().trim()
-                        }
-                    }
-                }
-                ""
-            } ?: ""
-        }.getOrElse {
-            ""
-        }
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(0)
+                    if (recentlyProcessed(id)) -1L else id
+                } else -1L
+            } ?: -1L
+        }.getOrDefault(-1L)
+    }
+
+    /**
+     * Guards against onError firing twice for the same download: both the
+     * klinker rebroadcast and this fallback can race to the same fresh row.
+     */
+    private fun recentlyProcessed(msgId: Long): Boolean {
+        val now = System.currentTimeMillis()
+        if (lastProcessedId == msgId && now - lastProcessedAt < 30_000L) return true
+        lastProcessedId = msgId
+        lastProcessedAt = now
+        return false
     }
 
     private fun queryThreadAndSubject(context: Context, msgId: Long): Pair<Long, String> {
@@ -161,5 +186,7 @@ class LibraryMmsReceivedReceiver : MmsReceivedReceiver() {
 
     companion object {
         private const val TAG = "DPAD_MSG"
+        private var lastProcessedId = -1L
+        private var lastProcessedAt = 0L
     }
 }

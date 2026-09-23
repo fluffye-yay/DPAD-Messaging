@@ -80,7 +80,7 @@ SharedPreferences wrapper for app settings storage.
 ### UnifiedMessageSender
 Routes outgoing messages through the appropriate SMS/MMS path, including scheduled sends.
 
-### MmsHelper / MmsDownloader
+### MmsHelper
 Composes, sends, downloads, and parses MMS messages (via the vendored mmslib).
 
 ### SmsSender

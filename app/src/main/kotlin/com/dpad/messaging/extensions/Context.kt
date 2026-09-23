@@ -130,6 +130,7 @@ fun Context.getConversationsFromTelephony(
     val conversations = mutableListOf<Conversation>()
     val ownNumbers = getOwnPhoneNumbers()
     val canonicalAddressCache = hashMapOf<Long, String?>()
+    loadCanonicalAddresses(canonicalAddressCache)
 
     try {
         contentResolver.query(uri, projection, null, null, "${Telephony.Threads.DATE} DESC")
@@ -205,11 +206,26 @@ fun Context.getConversationsFromTelephony(
 }
 
 /**
- * Resolves a space-separated string of canonical address IDs to phone numbers.
- * e.g. "3 7" → ["+15551234567", "+15559876543"]
+ * Bulk-loads all canonical addresses in a single provider query instead of
+ * doing one round-trip per recipient ID (the old N+1 pattern made first load
+ * extremely slow on some ROMs).  Populates [cache] with id → address.
  */
-private fun Context.resolveRecipientIds(recipientIds: String): List<String> {
-    return resolveRecipientIds(recipientIds, hashMapOf())
+private fun Context.loadCanonicalAddresses(cache: MutableMap<Long, String?>) {
+    val uri = Uri.parse("content://mms-sms/canonical-addresses")
+    try {
+        contentResolver.query(uri, arrayOf("_id", "address"), null, null, null)?.use { cursor ->
+            val idxId = cursor.getColumnIndex("_id")
+            val idxAddress = cursor.getColumnIndex("address")
+            while (cursor.moveToNext()) {
+                if (idxId >= 0 && idxAddress >= 0) {
+                    cache[cursor.getLong(idxId)] = cursor.getString(idxAddress)
+                }
+            }
+        }
+    } catch (e: Exception) {
+        // Log once and fall back to per-id resolution below.
+        android.util.Log.w("DPAD_MSG", "loadCanonicalAddresses bulk query failed, using per-id fallback", e)
+    }
 }
 
 private fun Context.resolveRecipientIds(

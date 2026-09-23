@@ -42,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
@@ -54,6 +55,9 @@ class MainActivity : BaseActivity() {
 
     /** Debounce job for search filtering — cancels and reschedules on each keystroke */
     private var searchDebounceJob: Job? = null
+
+    /** Debounce job for RefreshConversations events — coalesces bursts of SMS into one reload. */
+    private var refreshDebounceJob: Job? = null
 
     /** Active load job for conversations; cancelled when a newer load starts. */
     private var loadConversationsJob: Job? = null
@@ -128,6 +132,7 @@ class MainActivity : BaseActivity() {
     override fun onPause() {
         pendingFocusThreadId = currentFocusedThreadId() ?: pendingFocusThreadId
         loadConversationsJob?.cancel()
+        refreshDebounceJob?.cancel()
         EventBus.getDefault().unregister(this)
         super.onPause()
     }
@@ -258,11 +263,13 @@ class MainActivity : BaseActivity() {
                 val pinnedIds = Prefs.get().getPinnedThreadIds()
                 val mutedIds = Prefs.get().getMutedThreadIds()
                 val conversations = withContext(Dispatchers.IO) {
-                    getConversationsFromTelephony(
-                        App.get().contactHelper,
-                        pinnedIds,
-                        mutedThreadIds = mutedIds
-                    )
+                    withTimeoutOrNull(CONVERSATION_LOAD_TIMEOUT_MS) {
+                        getConversationsFromTelephony(
+                            App.get().contactHelper,
+                            pinnedIds,
+                            mutedThreadIds = mutedIds
+                        )
+                    } ?: emptyList()
                 }
                 if (!isActive) return@launch
                 hasLoadedConversationsOnce = true
@@ -276,10 +283,8 @@ class MainActivity : BaseActivity() {
                     binding.tvEmpty.visibility = View.VISIBLE
                 }
             } finally {
-                if (isActive) {
-                    binding.loadingConversations.visibility = View.GONE
-                    binding.rvConversations.visibility = View.VISIBLE
-                }
+                binding.loadingConversations.visibility = View.GONE
+                binding.rvConversations.visibility = View.VISIBLE
             }
         }
     }
@@ -811,7 +816,14 @@ class MainActivity : BaseActivity() {
     @Subscribe(threadMode = ThreadMode.MAIN)
     @Suppress("UNUSED_PARAMETER")
     fun onRefreshConversations(event: RefreshConversations) {
-        loadConversations(forceRefresh = true)
+        // Coalesce bursts of RefreshConversations (one per received message) into a
+        // single force-refresh. Otherwise every incoming SMS cancels/restarts the
+        // whole provider scan and the "loading" spinner never settles.
+        refreshDebounceJob?.cancel()
+        refreshDebounceJob = lifecycleScope.launch {
+            delay(REFRESH_DEBOUNCE_MS)
+            loadConversations(forceRefresh = true)
+        }
     }
 
     // ─── Key handling ───────────────────────────────────────────────────────
@@ -834,5 +846,7 @@ class MainActivity : BaseActivity() {
     companion object {
         private const val REQUEST_PERMISSIONS = 1001
         private const val REQUEST_DEFAULT_SMS = 1002
+        private const val CONVERSATION_LOAD_TIMEOUT_MS = 20_000L
+        private const val REFRESH_DEBOUNCE_MS = 800L
     }
 }

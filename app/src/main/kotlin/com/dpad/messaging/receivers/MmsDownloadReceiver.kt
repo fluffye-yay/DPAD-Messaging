@@ -26,11 +26,17 @@ import androidx.core.net.toUri
 
 
 /**
- * Receives the result PendingIntent from SmsManager.downloadMultimediaMessage().
+ * Processes the in-library MMS download-complete broadcast.
  *
- * On RESULT_OK the MMS content has been written to content://mms by the system.
- * We query for the new row, resolve the sender, show a notification, and fire
- * EventBus refresh events so ThreadActivity and MainActivity update.
+ * When mmslib uses its self-contained download path (useSystemSending=false,
+ * forced via MmsSender.initLibraryReceive), PushReceiver's DownloadRequest
+ * downloads the M-Retrieve-Conf itself, persists it into content://mms, then
+ * fires the NEW_MMS_DOWNLOADED broadcast. This receiver is routed to it via
+ * taskAffinity (BroadcastUtils). We query for the new row, resolve the sender,
+ * show a notification, and fire EventBus refresh events.
+ *
+ * Kept compatible with PendingIntent-result style intents (resultCode != OK =>
+ * placeholder cleanup) for safety, but the library broadcast carries no extra.
  */
 class MmsDownloadReceiver : BroadcastReceiver() {
 
@@ -66,16 +72,22 @@ class MmsDownloadReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val ACTION       = "com.dpad.messaging.MMS_DOWNLOADED"
+        const val LIB_ACTION   = "com.klinker.android.messaging.NEW_MMS_DOWNLOADED"
         const val EXTRA_MMS_ID = "extra_mms_id"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         val result = resultCode
         val msgId  = intent.getLongExtra(EXTRA_MMS_ID, -1L)
-        d { "MmsDownloadReceiver.onReceive() resultCode=$result msgId=$msgId" }
+        val action = intent.action
+        d { "MmsDownloadReceiver.onReceive() action=$action resultCode=$result msgId=$msgId" }
 
-        if (result != Activity.RESULT_OK) {
+        // The in-library NEW_MMS_DOWNLOADED broadcast is a plain (non-ordered)
+        // sendBroadcast: it always represents a successful download and carries
+        // no extra, so ignore resultCode/msgId for it. Only a PendingIntent-style
+        // MMS_DOWNLOADED result with a failed resultCode should trigger cleanup.
+        val isLibraryNotify = action == LIB_ACTION
+        if (result != Activity.RESULT_OK && !isLibraryNotify) {
             w { "MmsDownloadReceiver: download failed with resultCode=$result" }
             // Delete the placeholder row so it doesn't linger as a ghost entry.
             if (msgId > 0L) {

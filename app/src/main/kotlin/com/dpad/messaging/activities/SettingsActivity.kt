@@ -620,11 +620,4 @@ class SettingsActivity : BaseActivity() {
         val idx = values.indexOf(value)
         return if (idx >= 0) labels[idx] else labels.firstOrNull() ?: value
     }
-
-    private fun showComingSoon() {
-        AlertDialog.Builder(this)
-            .setMessage(R.string.coming_soon)
-            .setPositiveButton(R.string.ok, null)
-            .show()
-    }
 }

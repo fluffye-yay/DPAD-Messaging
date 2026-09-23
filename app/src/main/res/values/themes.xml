@@ -75,28 +75,7 @@
         <item name="android:textColorSecondary">@color/conversationDate</item>
     </style>
 
-    <style name="DpadPopupMenu" parent="Widget.MaterialComponents.PopupMenu">
-        <item name="android:textColor">@color/colorOnBackground</item>
-        <item name="android:background">@color/colorSurface</item>
-    </style>
-
     <!-- ─── AlertDialog ─── -->
-    <style name="DpadAlertDialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
-        <item name="android:background">@color/colorSurface</item>
-        <item name="android:textColor">@color/colorOnSurface</item>
-        <item name="colorPrimary">@color/colorPrimary</item>
-    </style>
-
-    <!-- ─── EditText (compose field, search) ─── -->
-    <style name="ComposeEditText" parent="Widget.MaterialComponents.TextInputEditText.OutlinedBox.Dense">
-        <item name="android:textColor">@color/composeInputText</item>
-        <item name="android:textColorHint">@color/composeHint</item>
-        <item name="android:background">@drawable/compose_input_bg</item>
-        <item name="android:paddingStart">@dimen/compose_input_padding_h</item>
-        <item name="android:paddingEnd">@dimen/compose_input_padding_h</item>
-        <item name="android:paddingTop">@dimen/compose_input_padding_v</item>
-        <item name="android:paddingBottom">@dimen/compose_input_padding_v</item>
-    </style>
 
     <!-- ─── Toolbar buttons ─── -->
     <style name="ToolbarButton">

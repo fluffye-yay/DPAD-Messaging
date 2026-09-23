@@ -62,6 +62,29 @@ object MmsSender {
      *                       lands in the correct existing thread.
      * @param subscriptionId SIM subscription ID (-1 = system default).
      */
+    /**
+     * Forces the library's self-contained MMS receive path (bypasses the system
+     * MmsService / SmsManager.downloadMultimediaMessage handoff, which never
+     * writes klinker's temp file on this ROM).
+     *
+     * PushReceiver and TransactionService choose their download method from the
+     * STATIC Transaction.settings. This must be initialized at app startup (and
+     * re-initialized / kept false by every send path), otherwise the library
+     * falls back to pref "system_mms_sending" = true and receive breaks.
+     */
+    fun initLibraryReceive(context: Context) {
+        val settings = KlinkerSettings().apply {
+            setUseSystemSending(false)
+            setGroup(true)
+            setDeliveryReports(Prefs.get().deliveryReports)
+        }
+        applyCarrierMmsConfig(context, settings)
+        KlinkerTransaction.settings = settings
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "MmsSender: initialized klinker static settings (useSystemSending=false)")
+        }
+    }
+
     fun send(
         context: Context,
         recipients: List<String>,

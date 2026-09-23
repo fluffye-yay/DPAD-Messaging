@@ -278,11 +278,15 @@
             android:exported="false"
             android:taskAffinity="com.klinker.android.messaging.MMS_RECEIVED" />
 
+        <!-- In-mmslib download-complete broadcast target (routed via taskAffinity
+             by BroadcastUtils; fires after DownloadRequest.persist stores the
+             M-Retrieve-Conf into the provider). -->
         <receiver
             android:name=".receivers.MmsDownloadReceiver"
-            android:exported="false">
+            android:exported="false"
+            android:taskAffinity="com.klinker.android.messaging.NEW_MMS_DOWNLOADED">
             <intent-filter>
-                <action android:name="com.dpad.messaging.MMS_DOWNLOADED" />
+                <action android:name="com.klinker.android.messaging.NEW_MMS_DOWNLOADED" />
             </intent-filter>
         </receiver>
 

@@ -13,7 +13,6 @@ object MmsPartCache {
     data class CachedParts(
         val textBody: String,
         val imagePartUris: List<String>,
-        val audioPartUri: String?,
         val attachmentLabel: String
     )
 
@@ -25,10 +24,5 @@ object MmsPartCache {
     @Synchronized
     fun put(msgId: Long, value: CachedParts) {
         cache.put(msgId, value)
-    }
-
-    @Synchronized
-    fun clear() {
-        cache.evictAll()
     }
 }

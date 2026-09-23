@@ -32,8 +32,6 @@ import java.io.File
 class MmsSentReceiver : BroadcastReceiver() {
     companion object {
         private const val EXTRA_FILE_PATH = "file_path"
-        private const val EXTRA_ORIGINAL_RESEND_ID = "original_resent_message_id"
-        private const val EXTRA_ORIGINAL_MESSAGE_ID = "original_message_id"
         private const val EXTRA_SCHEDULED_MESSAGE_ID = "extra_scheduled_message_id"
     }
 
@@ -64,7 +62,6 @@ class MmsSentReceiver : BroadcastReceiver() {
         }
 
         cleanupTempPduFile(intent)
-        deleteOriginalResentMessage(context, intent)
 
         val extras = intent.extras?.keySet()?.sorted()?.joinToString() ?: "<none>"
         Log.d(
@@ -167,21 +164,6 @@ class MmsSentReceiver : BroadcastReceiver() {
             Log.d("DPAD_MSG", "MmsSentReceiver: temp file cleanup path=$filePath deleted=$deleted")
         }.onFailure { e ->
             Log.w("DPAD_MSG", "MmsSentReceiver: temp file cleanup failed path=$filePath", e)
-        }
-    }
-
-    private fun deleteOriginalResentMessage(context: Context, intent: Intent) {
-        val originalId = when {
-            intent.hasExtra(EXTRA_ORIGINAL_RESEND_ID) -> intent.getLongExtra(EXTRA_ORIGINAL_RESEND_ID, -1L)
-            else -> intent.getLongExtra(EXTRA_ORIGINAL_MESSAGE_ID, -1L)
-        }
-        if (originalId <= 0) return
-
-        runCatching {
-            val deleted = context.contentResolver.delete(Uri.parse("content://mms/$originalId"), null, null)
-            Log.d("DPAD_MSG", "MmsSentReceiver: removed original resent mms id=$originalId deletedRows=$deleted")
-        }.onFailure { e ->
-            Log.w("DPAD_MSG", "MmsSentReceiver: failed removing original resent mms id=$originalId", e)
         }
     }
 }

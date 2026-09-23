@@ -8,7 +8,6 @@
 
     <!-- ─── Toolbar / Action Bar ─── -->
     <dimen name="toolbar_height">36dp</dimen>
-    <dimen name="toolbar_icon_size">18dp</dimen>
     <dimen name="toolbar_button_width">32dp</dimen>
     <dimen name="toolbar_padding_h">4dp</dimen>
 
@@ -26,13 +25,9 @@
     <dimen name="bubble_padding_h">10sp</dimen>
     <dimen name="bubble_padding_v">6sp</dimen>
     <dimen name="bubble_corner_radius">10dp</dimen>
-    <dimen name="bubble_max_width_fraction">0.78</dimen>  <!-- 78% of screen width -->
     <dimen name="bubble_margin_h">4dp</dimen>
     <dimen name="bubble_margin_v">2dp</dimen>
     <dimen name="bubble_sender_margin_top">2dp</dimen>
-    <!-- Image attachment max size to scale with bubble -->
-    <dimen name="attachment_image_width">160sp</dimen>
-    <dimen name="attachment_image_height">120sp</dimen>
     <dimen name="attachment_preview_width">60dp</dimen>
     <dimen name="attachment_preview_height">45dp</dimen>
 
@@ -84,10 +79,6 @@
     <dimen name="schedule_picker_padding">12dp</dimen>
     <dimen name="schedule_picker_label_width">72dp</dimen>
     <dimen name="schedule_picker_stepper_size">40dp</dimen>
-
-    <!-- ─── Bottom sheet ─── -->
-    <dimen name="bottom_sheet_handle_width">40dp</dimen>
-    <dimen name="bottom_sheet_handle_height">4dp</dimen>
 
     <!-- ─── Conversation row indicators ─── -->
     <dimen name="conversation_indicator_size">12dp</dimen>

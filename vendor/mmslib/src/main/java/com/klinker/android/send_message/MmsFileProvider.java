@@ -65,7 +65,13 @@ public class MmsFileProvider extends ContentProvider {
 
     @Override
     public ParcelFileDescriptor openFile(Uri uri, String fileMode) throws FileNotFoundException {
-        File file = new File(getContext().getCacheDir(), uri.getPath());
+        // uri.getPath() returns "/download.<rand>.dat" (leading slash). Passing an
+        // absolute child to new File(parent, child) drops the parent and resolves
+        // against the filesystem root, so the file is never created inside the
+        // cache dir. Strip the leading slash so the download lands in cacheDir and
+        // the MmsReceivedReceiver callback can find it.
+        String relativePath = uri.getPath().replaceAll("^/+", "");
+        File file = new File(getContext().getCacheDir(), relativePath);
         int mode = (TextUtils.equals(fileMode, "r") ? ParcelFileDescriptor.MODE_READ_ONLY :
                 ParcelFileDescriptor.MODE_WRITE_ONLY
                         |ParcelFileDescriptor.MODE_TRUNCATE

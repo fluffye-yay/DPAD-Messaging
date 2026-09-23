@@ -67,32 +67,73 @@ class SmsReceiver : BroadcastReceiver() {
         }
     }
 
+    /**
+     * Resolves the Telephony thread id for [address].
+     *
+     * Primary path is the fast canonical-address lookup. If that throws on a
+     * flaky ROM, we fall back to scanning existing SMS rows for the address so
+     * an incoming message is NEVER silently dropped on the thread-resolution
+     * path. Last resort is a stable synthetic thread id derived from the
+     * address, which keeps the message visible in its own thread.
+     */
+    private suspend fun resolveThreadId(context: Context, address: String): Long {
+        try {
+            val newId = Telephony.Threads.getOrCreateThreadId(context, address)
+            if (BuildConfig.DEBUG) Log.d("DPAD_MSG", "SmsReceiver: getOrCreateThreadId for '$address' -> $newId")
+            return newId
+        } catch (e: Exception) {
+            Log.e("DPAD_MSG", "SmsReceiver: getOrCreateThreadId failed for '$address'", e)
+        }
+
+        // Fallback: find the most recent existing thread for this address.
+        try {
+            context.contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                arrayOf(Telephony.Sms.THREAD_ID),
+                "${Telephony.Sms.ADDRESS} = ?",
+                arrayOf(address),
+                "${Telephony.Sms.DATE} DESC"
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(Telephony.Sms.THREAD_ID)
+                    if (index >= 0 && !cursor.isNull(index)) {
+                        val existing = cursor.getLong(index)
+                        if (existing > 0) {
+                            Log.w("DPAD_MSG", "SmsReceiver: fallback thread lookup for '$address' -> $existing")
+                            return existing
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DPAD_MSG", "SmsReceiver: fallback thread lookup failed for '$address'", e)
+        }
+
+        // Last resort: stable synthetic thread so the message is never lost.
+        val synthetic = 100_000_000L + (address.hashCode().toLong() and 0x3FFF_FFFFL)
+        Log.w("DPAD_MSG", "SmsReceiver: synthetic thread id for '$address' -> $synthetic")
+        return synthetic
+    }
+
     private suspend fun processMessage(
         context: Context,
         address: String,
         body: String,
         timestamp: Long
     ) {
-        if (BuildConfig.DEBUG) Log.d("DPAD_MSG", "SmsReceiver.processMessage() address=$address body='${body.take(40)}'")
+        Log.d("DPAD_MSG", "SmsReceiver.processMessage() address=$address body='${body.take(40)}'")
 
         // ── MDM hard-filter — must run first, before any thread/insert side effects ──
         val filterResult = SmsWhitelistManager.check(context, address)
         if (!filterResult.allowed) {
-            Log.i("DPAD_MSG", "SmsReceiver: dropped message from $address — ${filterResult.reason}")
+            // Always-on (not debug-gated) so missing-SMS reports can be diagnosed
+            // from a release-build logcat.
+            Log.e("DPAD_MSG", "SmsReceiver: DROPPED message from $address — ${filterResult.reason}")
             return
         }
         // ───────────────────────────────────────────────────────────────────────────
 
-        // The conversation fallback scan was removed because some ROMs make
-        // canonical-address queries extremely slow and can ANR SMS_DELIVER.
-        val threadId: Long = try {
-            val newId = Telephony.Threads.getOrCreateThreadId(context, address)
-            if (BuildConfig.DEBUG) Log.d("DPAD_MSG", "SmsReceiver: getOrCreateThreadId for '$address' -> $newId")
-            newId
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG) Log.e("DPAD_MSG", "SmsReceiver: getOrCreateThreadId failed for '$address'", e)
-            return
-        }
+        val threadId = resolveThreadId(context, address)
         if (BuildConfig.DEBUG) Log.d("DPAD_MSG", "SmsReceiver: resolved threadId=$threadId")
 
         // Insert into Telephony Sms CP so every SMS reader app can see it.
@@ -110,7 +151,9 @@ class SmsReceiver : BroadcastReceiver() {
             val insertedUri = context.contentResolver.insert(Telephony.Sms.CONTENT_URI, cv)
             if (BuildConfig.DEBUG) Log.d("DPAD_MSG", "SmsReceiver: inserted SMS row -> $insertedUri")
         } catch (e: Exception) {
-            if (BuildConfig.DEBUG) Log.e("DPAD_MSG", "SmsReceiver: insert failed", e)
+            // E-mail-permissioned apps can see the row even when this insert fails, so
+            // never drop silently — log loudly and keep the notification/refresh flow.
+            Log.e("DPAD_MSG", "SmsReceiver: insert failed for '$address'", e)
             e.printStackTrace()
         }
 
