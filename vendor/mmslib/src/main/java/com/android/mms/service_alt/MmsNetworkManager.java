@@ -22,7 +22,6 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.net.NetworkInfo;
-import android.net.SSLCertificateSocketFactory;
 import android.os.Build;
 import android.os.SystemClock;
 
@@ -33,6 +32,7 @@ import com.squareup.okhttp.ConnectionPool;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import javax.net.SocketFactory;
 
 public class MmsNetworkManager implements com.squareup.okhttp.internal.Network {
     private static final String TAG = "MmsNetworkManager";
@@ -111,6 +111,40 @@ public class MmsNetworkManager implements com.squareup.okhttp.internal.Network {
     }
 
     /**
+     * Build the fallback NetworkRequest used when no dedicated MMS network is granted.
+     * On AT&T and many MVNOs the MMS gateway is only reachable over the cellular data
+     * network (the mms PDN may never be brought up), so we target the cellular INTERNET
+     * network instead of a generic one (which could match WiFi).
+     */
+    private NetworkRequest buildCellularDataRequest() {
+        final NetworkRequest.Builder builder = new NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+            builder.setNetworkSpecifier(Integer.toString(mSubId));
+        }
+        return builder.build();
+    }
+
+    private boolean waitForNetworkLocked() {
+        final long shouldEnd = SystemClock.elapsedRealtime() + NETWORK_ACQUIRE_TIMEOUT_MILLIS;
+        long waitTime = NETWORK_ACQUIRE_TIMEOUT_MILLIS;
+        while (waitTime > 0) {
+            try {
+                this.wait(waitTime);
+            } catch (InterruptedException e) {
+                Log.w(TAG, "MmsNetworkManager: acquire network wait interrupted");
+            }
+            if (mNetwork != null || permissionError) {
+                return true;
+            }
+            // Calculate remaining waiting time to make sure we wait the full timeout period
+            waitTime = shouldEnd - SystemClock.elapsedRealtime();
+        }
+        return false;
+    }
+
+    /**
      * Acquire the MMS network
      *
      * @throws MmsNetworkException if we fail to acquire it
@@ -126,20 +160,22 @@ public class MmsNetworkManager implements com.squareup.okhttp.internal.Network {
             Log.d(TAG, "MmsNetworkManager: start new network request");
             // Not available, so start a new request
             newRequest();
-            final long shouldEnd = SystemClock.elapsedRealtime() + NETWORK_ACQUIRE_TIMEOUT_MILLIS;
-            long waitTime = NETWORK_ACQUIRE_TIMEOUT_MILLIS;
-            while (waitTime > 0) {
-                try {
-                    this.wait(waitTime);
-                } catch (InterruptedException e) {
-                    Log.w(TAG, "MmsNetworkManager: acquire network wait interrupted");
-                }
-                if (mNetwork != null || permissionError) {
-                    // Success
-                    return mNetwork;
-                }
-                // Calculate remaining waiting time to make sure we wait the full timeout period
-                waitTime = shouldEnd - SystemClock.elapsedRealtime();
+            boolean granted = waitForNetworkLocked();
+
+            if (!granted && !permissionError && !MmsRequest.useWifi(mContext)) {
+                // The dedicated MMS network was not granted (this ROM/modem never brings
+                // up the mms PDN). Retry against the cellular data network, which routes
+                // to the carrier's MMSC proxy over the cell interface.
+                Log.w(TAG, "MmsNetworkManager: MMS network not granted, retrying cellular data");
+                releaseRequestLocked(mNetworkCallback);
+                mNetworkRequest = buildCellularDataRequest();
+                newRequest();
+                granted = waitForNetworkLocked();
+            }
+
+            if (mNetwork != null || permissionError) {
+                // Success
+                return mNetwork;
             }
             // Timed out, so fall back to using the default network and fail fast
             Log.d(TAG, "MmsNetworkManager: timed out");
@@ -293,7 +329,7 @@ public class MmsNetworkManager implements com.squareup.okhttp.internal.Network {
                 } else if (permissionError) {
                     mMmsHttpClient = new MmsHttpClient(
                             mContext,
-                            new SSLCertificateSocketFactory(NETWORK_REQUEST_TIMEOUT_MILLIS),
+                            SocketFactory.getDefault(),
                             MmsNetworkManager.this,
                             getOrCreateConnectionPoolLocked());
                 }
@@ -312,9 +348,7 @@ public class MmsNetworkManager implements com.squareup.okhttp.internal.Network {
         synchronized (this) {
             if (mNetwork == null) {
                 Log.d(TAG, "MmsNetworkManager: getApnName: network not available");
-                mNetworkRequest = new NetworkRequest.Builder()
-                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                        .build();
+                mNetworkRequest = buildCellularDataRequest();
                 return null;
             }
             network = mNetwork;

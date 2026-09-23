@@ -135,9 +135,6 @@ object MmsSender {
         scheduledMessageId: Long?
     ) {
         val message = KlinkerMessage(body, recipients.toTypedArray())
-        if (recipients.size > 1) {
-            message.setSubject("Group message")
-        }
 
         // Add all attachments to a single MMS (multipart/mixed) per library pattern
         for (uri in attachmentUris) {

@@ -271,7 +271,8 @@ public class MmsHttpClient {
             });
             okHttpClient.setConnectionSpecs(Arrays.asList(ConnectionSpec.CLEARTEXT));
             okHttpClient.setConnectionPool(new ConnectionPool(3, 60000));
-            okHttpClient.setSocketFactory(SocketFactory.getDefault());
+            okHttpClient.setSocketFactory(mSocketFactory != null
+                    ? mSocketFactory : SocketFactory.getDefault());
             Internal.instance.setNetwork(okHttpClient, mHostResolver);
 
             if (proxy != null) {
@@ -284,6 +285,8 @@ public class MmsHttpClient {
             okHttpClient.setProtocols(Arrays.asList(Protocol.HTTP_1_1));
             HostnameVerifier verifier = HttpsURLConnection.getDefaultHostnameVerifier();
             okHttpClient.setHostnameVerifier(verifier);
+            okHttpClient.setSocketFactory(mSocketFactory != null
+                    ? mSocketFactory : SocketFactory.getDefault());
             okHttpClient.setSslSocketFactory(HttpsURLConnection.getDefaultSSLSocketFactory());
             okHttpClient.setProxySelector(new ProxySelector() {
                 @Override
