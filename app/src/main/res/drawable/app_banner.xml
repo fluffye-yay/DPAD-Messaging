@@ -2,5 +2,5 @@
 <!-- TV/Leanback launcher banner: 320x180dp recommended -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="@color/colorPrimary"/>
+    <solid android:color="@color/accent_rose"/>
 </shape>
